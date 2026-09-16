@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, TouchableWithoutFeedback, Dimensions } from 'react-native';
+import { COLORS } from '../constants/theme';
 
 interface WaveformProps {
   progress: number; // 0.0 to 1.0
@@ -12,7 +13,7 @@ export const WaveformVisualizer: React.FC<WaveformProps> = ({
   onSeek,
   barCount = 32,
 }) => {
-  // Generate nice dynamic heights matching waveform design in mockup
+  // Generate dynamic heights matching waveform design
   const heights = [
     12, 18, 10, 24, 16, 32, 20, 28, 14, 38,
     46, 22, 18, 30, 42, 54, 36, 48, 62, 40,
@@ -41,7 +42,7 @@ export const WaveformVisualizer: React.FC<WaveformProps> = ({
                 styles.bar,
                 {
                   height: height,
-                  backgroundColor: isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.25)',
+                  backgroundColor: isActive ? COLORS.waveformActive : COLORS.waveformInactive,
                 },
               ]}
             />

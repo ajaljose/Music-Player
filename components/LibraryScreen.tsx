@@ -21,6 +21,7 @@ import {
 import { FolderData, Song } from '../types';
 import { PlaybackState } from '../services/AudioPlayerService';
 import { EqualizerIcon } from './EqualizerIcon';
+import { COLORS, GRADIENTS } from '../constants/theme';
 
 const DEFAULT_ARTWORK = require('../assets/default_album_art.jpg');
 
@@ -94,8 +95,8 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
         >
           <Heart
             size={20}
-            color={item.isFavorite ? '#00f0ff' : '#45435a'}
-            fill={item.isFavorite ? '#00f0ff' : 'transparent'}
+            color={item.isFavorite ? COLORS.yellowAccent : COLORS.slateGray}
+            fill={item.isFavorite ? COLORS.yellowAccent : 'transparent'}
           />
         </TouchableOpacity>
       </TouchableOpacity>
@@ -110,17 +111,17 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <LinearGradient colors={['#0a071e', '#130c2a']} style={styles.container}>
+      <LinearGradient colors={GRADIENTS.libraryBg} style={styles.container}>
         {/* Header Bar */}
         <View style={styles.headerBar}>
           <TouchableOpacity onPress={onBackToNowPlaying} style={styles.iconBtn}>
-            <ChevronLeft size={26} color="#FFFFFF" />
+            <ChevronLeft size={26} color={COLORS.lightGray} />
           </TouchableOpacity>
 
-          <Text style={styles.headerTitle}>Profile</Text>
+          <Text style={styles.headerTitle}>Library</Text>
 
           <TouchableOpacity style={styles.iconBtn}>
-            <Search size={22} color="#FFFFFF" />
+            <Search size={22} color={COLORS.lightGray} />
           </TouchableOpacity>
         </View>
 
@@ -148,12 +149,12 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
           <View style={styles.actionButtonsRow}>
             <TouchableOpacity onPress={onPlayAll} style={styles.playAllBtn} activeOpacity={0.8}>
               <LinearGradient
-                colors={['#ff7a00', '#ff3b00']}
+                colors={GRADIENTS.playBtn}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.playGradient}
               >
-                <Play size={18} color="#FFFFFF" fill="#FFFFFF" />
+                <Play size={18} color={COLORS.darkBg} fill={COLORS.darkBg} />
                 <Text style={styles.playAllText}>Play</Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -163,14 +164,14 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
               style={styles.shuffleAllBtn}
               activeOpacity={0.8}
             >
-              <Shuffle size={18} color="#FFFFFF" />
+              <Shuffle size={18} color={COLORS.lightGray} />
               <Text style={styles.shuffleAllText}>Shuffle</Text>
             </TouchableOpacity>
           </View>
 
           {/* Dedicated Option to Change Folder */}
           <TouchableOpacity onPress={onChangeFolder} style={styles.changeFolderBtn}>
-            <FolderSync size={18} color="#ff6b00" />
+            <FolderSync size={18} color={COLORS.cyanAccent} />
             <Text style={styles.changeFolderText}>Change Music Folder</Text>
           </TouchableOpacity>
         </View>
@@ -184,7 +185,7 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Music size={48} color="#3b3952" />
+              <Music size={48} color={COLORS.slateGray} />
               <Text style={styles.emptyText}>No MP3 files found in selected folder</Text>
               <TouchableOpacity onPress={onChangeFolder} style={styles.selectFolderBtn}>
                 <Text style={styles.selectFolderBtnText}>Select Folder</Text>
@@ -200,7 +201,7 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0a071e',
+    backgroundColor: COLORS.darkBg,
   },
   container: {
     flex: 1,
@@ -219,18 +220,18 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: COLORS.lightGray,
   },
   profileCard: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: COLORS.cardBg,
     marginHorizontal: 20,
     marginTop: 10,
     borderRadius: 24,
     paddingVertical: 20,
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: COLORS.cardBorder,
   },
   avatarWrapper: {
     width: 80,
@@ -238,7 +239,7 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: COLORS.cyanAccent,
   },
   avatarImage: {
     width: '100%',
@@ -247,7 +248,7 @@ const styles = StyleSheet.create({
   albumTitle: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: COLORS.lightGray,
     marginTop: 12,
     letterSpacing: 0.3,
   },
@@ -264,17 +265,17 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: COLORS.lightGray,
   },
   statLabel: {
     fontSize: 12,
-    color: '#8a89a0',
+    color: COLORS.slateGray,
     marginTop: 2,
   },
   statDivider: {
     width: 1,
     height: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: COLORS.cardBorder,
   },
   actionButtonsRow: {
     flexDirection: 'row',
@@ -298,7 +299,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   playAllText: {
-    color: '#FFFFFF',
+    color: COLORS.darkBg,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -307,15 +308,15 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: COLORS.cardBorder,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: COLORS.cardBg,
   },
   shuffleAllText: {
-    color: '#FFFFFF',
+    color: COLORS.lightGray,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -328,11 +329,11 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 107, 0, 0.1)',
+    backgroundColor: 'rgba(0, 159, 183, 0.12)',
   },
   changeFolderText: {
     fontSize: 13,
-    color: '#ff6b00',
+    color: COLORS.cyanAccent,
     fontWeight: '600',
   },
   listContent: {
@@ -345,10 +346,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    borderBottomColor: 'rgba(105, 103, 115, 0.15)',
   },
   activeTrackRow: {
-    backgroundColor: 'rgba(255, 107, 0, 0.06)',
+    backgroundColor: COLORS.activeTrackBg,
     borderRadius: 12,
     paddingHorizontal: 8,
   },
@@ -359,7 +360,7 @@ const styles = StyleSheet.create({
   trackNumber: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: COLORS.slateGray,
   },
   trackThumb: {
     width: 38,
@@ -374,14 +375,14 @@ const styles = StyleSheet.create({
   trackTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: COLORS.lightGray,
   },
   activeTrackTitle: {
-    color: '#ff7a00',
+    color: COLORS.yellowAccent,
   },
   trackSubtitle: {
     fontSize: 13,
-    color: '#8a89a0',
+    color: COLORS.slateGray,
     marginTop: 3,
   },
   heartBtn: {
@@ -393,20 +394,20 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
   },
   emptyText: {
-    color: '#8a89a0',
+    color: COLORS.slateGray,
     fontSize: 15,
     marginTop: 12,
     textAlign: 'center',
   },
   selectFolderBtn: {
     marginTop: 16,
-    backgroundColor: '#ff6b00',
+    backgroundColor: COLORS.yellowAccent,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
   },
   selectFolderBtnText: {
-    color: '#FFFFFF',
+    color: COLORS.darkBg,
     fontWeight: '700',
   },
 });

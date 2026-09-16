@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Animated, StyleSheet } from 'react-native';
+import { COLORS } from '../constants/theme';
 
 export const EqualizerIcon: React.FC<{ isPlaying: boolean }> = ({ isPlaying }) => {
   const bar1 = useRef(new Animated.Value(6)).current;
@@ -56,7 +57,7 @@ const styles = StyleSheet.create({
   },
   bar: {
     width: 3.5,
-    backgroundColor: '#ff7a00',
+    backgroundColor: COLORS.yellowAccent,
     borderRadius: 2,
     marginHorizontal: 1.5,
   },

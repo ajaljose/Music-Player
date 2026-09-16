@@ -6,6 +6,7 @@ import { AudioPlayerService, PlaybackState } from './services/AudioPlayerService
 import { NowPlayingScreen } from './components/NowPlayingScreen';
 import { LibraryScreen } from './components/LibraryScreen';
 import { BottomNavigation } from './components/BottomNavigation';
+import { COLORS } from './constants/theme';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('home');
@@ -109,7 +110,7 @@ export default function App() {
 
   return (
     <View style={styles.appContainer}>
-      <StatusBar barStyle="light-content" backgroundColor="#0a071e" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.darkBg} />
 
       {/* Main Screen Router */}
       <View style={styles.mainView}>
@@ -139,7 +140,7 @@ export default function App() {
         )}
       </View>
 
-      {/* Bottom Glassmorphic Navigation Bar */}
+      {/* Bottom Navigation Bar */}
       <BottomNavigation activeTab={activeTab} onTabChange={(tab) => setActiveTab(tab)} />
     </View>
   );
@@ -148,7 +149,7 @@ export default function App() {
 const styles = StyleSheet.create({
   appContainer: {
     flex: 1,
-    backgroundColor: '#0a071e',
+    backgroundColor: COLORS.darkBg,
   },
   mainView: {
     flex: 1,

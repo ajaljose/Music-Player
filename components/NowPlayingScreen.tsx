@@ -25,6 +25,7 @@ import {
 import { PlaybackState } from '../services/AudioPlayerService';
 import { WaveformVisualizer } from './WaveformVisualizer';
 import { formatDuration } from '../services/MetadataParser';
+import { COLORS, GRADIENTS } from '../constants/theme';
 
 const DEFAULT_ARTWORK = require('../assets/default_album_art.jpg');
 
@@ -75,9 +76,9 @@ export const NowPlayingScreen: React.FC<NowPlayingProps> = ({
   return (
     <SafeAreaView style={styles.safeContainer}>
       <View style={styles.container}>
-        {/* Top Curved Orange Header Background */}
+        {/* Top Curved Gradient Header Background */}
         <LinearGradient
-          colors={['#FF6B00', '#FF3B00', '#D61F00']}
+          colors={GRADIENTS.header}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
           style={styles.topCurvedHeader}
@@ -85,13 +86,13 @@ export const NowPlayingScreen: React.FC<NowPlayingProps> = ({
           {/* Header Controls */}
           <View style={styles.navHeader}>
             <TouchableOpacity onPress={onOpenLibrary} style={styles.headerBtn}>
-              <ChevronDown size={28} color="#FFFFFF" />
+              <ChevronDown size={28} color={COLORS.lightGray} />
             </TouchableOpacity>
 
             <Text style={styles.headerTitle}>Now Playing</Text>
 
             <TouchableOpacity onPress={onOpenLibrary} style={styles.headerBtn}>
-              <ListMusic size={24} color="#FFFFFF" />
+              <ListMusic size={24} color={COLORS.lightGray} />
             </TouchableOpacity>
           </View>
         </LinearGradient>
@@ -108,8 +109,8 @@ export const NowPlayingScreen: React.FC<NowPlayingProps> = ({
           <TouchableOpacity onPress={onToggleFavorite} style={styles.iconBtn}>
             <Heart
               size={24}
-              color={isFavorite ? '#00f0ff' : '#8a89a0'}
-              fill={isFavorite ? '#00f0ff' : 'transparent'}
+              color={isFavorite ? COLORS.yellowAccent : COLORS.slateGray}
+              fill={isFavorite ? COLORS.yellowAccent : 'transparent'}
             />
           </TouchableOpacity>
 
@@ -123,7 +124,7 @@ export const NowPlayingScreen: React.FC<NowPlayingProps> = ({
           </View>
 
           <TouchableOpacity style={styles.iconBtn}>
-            <MoreHorizontal size={24} color="#8a89a0" />
+            <MoreHorizontal size={24} color={COLORS.slateGray} />
           </TouchableOpacity>
         </View>
 
@@ -138,41 +139,41 @@ export const NowPlayingScreen: React.FC<NowPlayingProps> = ({
         <View style={styles.controlsRow}>
           {/* Shuffle Toggle */}
           <TouchableOpacity onPress={onToggleShuffle} style={styles.controlBtn}>
-            <Shuffle size={20} color={shuffleEnabled ? '#ff6b00' : '#8a89a0'} />
+            <Shuffle size={20} color={shuffleEnabled ? COLORS.yellowAccent : COLORS.slateGray} />
           </TouchableOpacity>
 
           {/* Previous Track */}
           <TouchableOpacity onPress={onPrevious} style={styles.controlBtn}>
-            <SkipBack size={26} color="#FFFFFF" fill="#FFFFFF" />
+            <SkipBack size={26} color={COLORS.lightGray} fill={COLORS.lightGray} />
           </TouchableOpacity>
 
-          {/* Play / Pause Orange Button */}
+          {/* Play / Pause Yellow Accent Button */}
           <TouchableOpacity onPress={onTogglePlayPause} activeOpacity={0.8}>
             <LinearGradient
-              colors={['#ff8000', '#ff4500']}
+              colors={GRADIENTS.playBtn}
               style={styles.playButton}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
               {isPlaying ? (
-                <Pause size={30} color="#FFFFFF" fill="#FFFFFF" />
+                <Pause size={30} color={COLORS.darkBg} fill={COLORS.darkBg} />
               ) : (
-                <Play size={30} color="#FFFFFF" fill="#FFFFFF" style={{ marginLeft: 4 }} />
+                <Play size={30} color={COLORS.darkBg} fill={COLORS.darkBg} style={{ marginLeft: 4 }} />
               )}
             </LinearGradient>
           </TouchableOpacity>
 
           {/* Next Track */}
           <TouchableOpacity onPress={onNext} style={styles.controlBtn}>
-            <SkipForward size={26} color="#FFFFFF" fill="#FFFFFF" />
+            <SkipForward size={26} color={COLORS.lightGray} fill={COLORS.lightGray} />
           </TouchableOpacity>
 
           {/* Repeat Mode Toggle */}
           <TouchableOpacity onPress={onToggleRepeat} style={styles.controlBtn}>
             {repeatMode === 'one' ? (
-              <Repeat1 size={20} color="#ff6b00" />
+              <Repeat1 size={20} color={COLORS.yellowAccent} />
             ) : (
-              <Repeat size={20} color={repeatMode === 'all' ? '#ff6b00' : '#8a89a0'} />
+              <Repeat size={20} color={repeatMode === 'all' ? COLORS.yellowAccent : COLORS.slateGray} />
             )}
           </TouchableOpacity>
         </View>
@@ -184,16 +185,16 @@ export const NowPlayingScreen: React.FC<NowPlayingProps> = ({
 const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
-    backgroundColor: '#0a071e',
+    backgroundColor: COLORS.darkBg,
   },
   container: {
     flex: 1,
-    backgroundColor: '#0a071e',
+    backgroundColor: COLORS.darkBg,
     alignItems: 'center',
   },
   topCurvedHeader: {
     width: '100%',
-    height: 240,
+    height: 350,
     borderBottomLeftRadius: width * 0.4,
     borderBottomRightRadius: width * 0.4,
     paddingTop: 16,
@@ -212,30 +213,30 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: COLORS.lightGray,
     letterSpacing: 0.5,
   },
   artworkContainer: {
-    marginTop: -120,
+    marginTop: -250,
     alignItems: 'center',
     justifyContent: 'center',
   },
   artworkGlowRing: {
-    width: 250,
-    height: 250,
-    borderRadius: 125,
-    backgroundColor: '#120b2e',
+    width: 320,
+    height: 320,
+    borderRadius: 25,
+    backgroundColor: COLORS.darkerBg,
     padding: 6,
-    shadowColor: '#ff5500',
+    shadowColor: COLORS.cyanAccent,
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.4,
     shadowRadius: 25,
     elevation: 15,
   },
   artworkImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 120,
+    borderRadius: 20,
   },
   songInfoContainer: {
     flexDirection: 'row',
@@ -255,14 +256,14 @@ const styles = StyleSheet.create({
   songTitle: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: COLORS.lightGray,
     textAlign: 'center',
     letterSpacing: 0.3,
   },
   songArtist: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#8a89a0',
+    color: COLORS.slateGray,
     marginTop: 4,
     textAlign: 'center',
   },
@@ -277,7 +278,7 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#a09fbe',
+    color: COLORS.slateGray,
     width: 40,
     textAlign: 'center',
   },
@@ -299,9 +300,9 @@ const styles = StyleSheet.create({
     borderRadius: 34,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#ff5500',
+    shadowColor: COLORS.yellowAccent,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
+    shadowOpacity: 0.5,
     shadowRadius: 16,
     elevation: 12,
   },
