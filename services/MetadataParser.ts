@@ -121,6 +121,7 @@ function parseWithJsmediatags(buffer: Buffer): Promise<{
   title?: string;
   artist?: string;
   album?: string;
+  composer?: string;
   year?: string;
   artworkDataUri?: string | null;
   mimeType?: string | null;
@@ -129,7 +130,7 @@ function parseWithJsmediatags(buffer: Buffer): Promise<{
     try {
       const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
       new jsmediatags.Reader(arrayBuffer)
-        .setTagsToRead(['title', 'artist', 'album', 'year', 'picture'])
+        .setTagsToRead(['title', 'artist', 'album', 'year', 'picture', 'composer', 'TCOM'])
         .read({
           onSuccess: (tag: any) => {
             const tags = tag.tags;
@@ -147,6 +148,7 @@ function parseWithJsmediatags(buffer: Buffer): Promise<{
               title: tags.title,
               artist: tags.artist,
               album: tags.album,
+              composer: tags.composer || (tags.TCOM ? tags.TCOM.data : undefined),
               year: tags.year,
               artworkDataUri,
               mimeType,
@@ -206,6 +208,7 @@ export async function parseMp3Metadata(uri: string, filename: string): Promise<S
   let title = fallbackInfo.title;
   let artist = fallbackInfo.artist;
   let album = 'Local Folder';
+  let composer: string | undefined = undefined;
   let year: string | undefined = undefined;
   let artworkUri: string | null = null;
   let durationMillis = 180000;
@@ -234,6 +237,7 @@ export async function parseMp3Metadata(uri: string, filename: string): Promise<S
       if (jsMediaRes.title) title = jsMediaRes.title;
       if (jsMediaRes.artist) artist = jsMediaRes.artist;
       if (jsMediaRes.album) album = jsMediaRes.album;
+      if (jsMediaRes.composer) composer = jsMediaRes.composer;
       if (jsMediaRes.year) year = jsMediaRes.year;
 
       let extractedArtDataUri: string | null = jsMediaRes.artworkDataUri || null;
@@ -248,7 +252,7 @@ export async function parseMp3Metadata(uri: string, filename: string): Promise<S
         }
       }
 
-      // 3. Fallback text parser for TIT2, TPE1, TALB if title wasn't set by jsmediatags
+      // 3. Fallback text parser for TIT2, TPE1, TALB, TCOM if title wasn't set by jsmediatags
       if (title === fallbackInfo.title && buffer.length > 10 && buffer[0] === 0x49 && buffer[1] === 0x44 && buffer[2] === 0x33) {
         const bufferStr = buffer.toString('binary');
         
@@ -278,6 +282,15 @@ export async function parseMp3Metadata(uri: string, filename: string): Promise<S
             if (rawAlbum.length > 1) album = rawAlbum;
           }
         }
+
+        const tcomIdx = bufferStr.indexOf('TCOM');
+        if (tcomIdx !== -1 && tcomIdx + 10 < buffer.length) {
+          const frameSize = buffer.readUInt32BE(tcomIdx + 4);
+          if (frameSize > 0 && frameSize < 300) {
+            const rawComposer = buffer.slice(tcomIdx + 10, tcomIdx + 10 + frameSize).toString('utf8').replace(/[^\x20-\x7E]/g, '').trim();
+            if (rawComposer.length > 1) composer = rawComposer;
+          }
+        }
       }
 
       // 4. Cache & set artwork if extracted
@@ -299,6 +312,7 @@ export async function parseMp3Metadata(uri: string, filename: string): Promise<S
     title,
     artist,
     album,
+    composer,
     year,
     durationMillis,
     durationFormatted: formatDuration(durationMillis),

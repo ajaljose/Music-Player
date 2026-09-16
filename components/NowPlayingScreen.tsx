@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Dimensions,
   SafeAreaView,
+  ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -21,9 +22,15 @@ import {
   Repeat1,
   Play,
   Pause,
+  Info,
+  Music2,
+  User,
+  Disc,
+  Feather,
+  Calendar,
 } from 'lucide-react-native';
 import { PlaybackState } from '../services/AudioPlayerService';
-import { WaveformVisualizer } from './WaveformVisualizer';
+import { InteractiveSlider } from './InteractiveSlider';
 import { formatDuration } from '../services/MetadataParser';
 import { COLORS, GRADIENTS } from '../constants/theme';
 
@@ -59,6 +66,9 @@ export const NowPlayingScreen: React.FC<NowPlayingProps> = ({
 
   const title = currentSong ? currentSong.title : 'No Track Playing';
   const artist = currentSong ? currentSong.artist : 'Select a Folder';
+  const album = currentSong?.album || 'Unknown Album';
+  const composer = currentSong?.composer || 'Unknown Composer';
+  const year = currentSong?.year || 'Unknown Year';
   const isFavorite = currentSong ? !!currentSong.isFavorite : false;
 
   const artworkSource = currentSong?.artworkUri
@@ -67,15 +77,13 @@ export const NowPlayingScreen: React.FC<NowPlayingProps> = ({
 
   const progressRatio = durationMillis > 0 ? positionMillis / durationMillis : 0;
 
-  const handleWaveformSeek = (ratio: number) => {
-    if (durationMillis > 0) {
-      onSeek(ratio * durationMillis);
-    }
-  };
-
   return (
     <SafeAreaView style={styles.safeContainer}>
-      <View style={styles.container}>
+      <ScrollView
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Top Curved Gradient Header Background */}
         <LinearGradient
           colors={GRADIENTS.header}
@@ -128,10 +136,17 @@ export const NowPlayingScreen: React.FC<NowPlayingProps> = ({
           </TouchableOpacity>
         </View>
 
-        {/* Audio Waveform Progress Visualizer */}
-        <View style={styles.waveformSection}>
+        {/* Interactive Progress Bar */}
+        <View style={styles.progressSection}>
           <Text style={styles.timeText}>{formatDuration(positionMillis)}</Text>
-          <WaveformVisualizer progress={progressRatio} onSeek={handleWaveformSeek} barCount={30} />
+          <InteractiveSlider
+            progress={progressRatio}
+            onSeek={(ratio) => {
+              if (durationMillis > 0) {
+                onSeek(ratio * durationMillis);
+              }
+            }}
+          />
           <Text style={styles.timeText}>{formatDuration(durationMillis)}</Text>
         </View>
 
@@ -177,7 +192,67 @@ export const NowPlayingScreen: React.FC<NowPlayingProps> = ({
             )}
           </TouchableOpacity>
         </View>
-      </View>
+
+        {/* Track Details Section at the Bottom */}
+        <View style={styles.detailsCard}>
+          <View style={styles.detailsHeader}>
+            <Info size={18} color={COLORS.yellowAccent} />
+            <Text style={styles.detailsHeaderText}>Track Information</Text>
+          </View>
+
+          <View style={styles.detailsGrid}>
+            <View style={styles.detailRow}>
+              <View style={styles.detailIconWrapper}>
+                <Music2 size={16} color={COLORS.cyanAccent} />
+              </View>
+              <View style={styles.detailTextWrapper}>
+                <Text style={styles.detailLabel}>Title</Text>
+                <Text style={styles.detailValue} numberOfLines={2}>{title}</Text>
+              </View>
+            </View>
+
+            <View style={styles.detailRow}>
+              <View style={styles.detailIconWrapper}>
+                <User size={16} color={COLORS.cyanAccent} />
+              </View>
+              <View style={styles.detailTextWrapper}>
+                <Text style={styles.detailLabel}>Authors / Artists</Text>
+                <Text style={styles.detailValue} numberOfLines={2}>{artist}</Text>
+              </View>
+            </View>
+
+            <View style={styles.detailRow}>
+              <View style={styles.detailIconWrapper}>
+                <Disc size={16} color={COLORS.cyanAccent} />
+              </View>
+              <View style={styles.detailTextWrapper}>
+                <Text style={styles.detailLabel}>Album</Text>
+                <Text style={styles.detailValue} numberOfLines={2}>{album}</Text>
+              </View>
+            </View>
+
+            <View style={styles.detailRow}>
+              <View style={styles.detailIconWrapper}>
+                <Feather size={16} color={COLORS.cyanAccent} />
+              </View>
+              <View style={styles.detailTextWrapper}>
+                <Text style={styles.detailLabel}>Composer</Text>
+                <Text style={styles.detailValue} numberOfLines={2}>{composer}</Text>
+              </View>
+            </View>
+
+            <View style={styles.detailRow}>
+              <View style={styles.detailIconWrapper}>
+                <Calendar size={16} color={COLORS.cyanAccent} />
+              </View>
+              <View style={styles.detailTextWrapper}>
+                <Text style={styles.detailLabel}>Year Recorded</Text>
+                <Text style={styles.detailValue} numberOfLines={1}>{year}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -187,10 +262,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.darkBg,
   },
-  container: {
+  scrollContainer: {
     flex: 1,
-    backgroundColor: COLORS.darkBg,
+  },
+  scrollContent: {
     alignItems: 'center',
+    paddingBottom: 32,
   },
   topCurvedHeader: {
     width: '100%',
@@ -267,7 +344,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
   },
-  waveformSection: {
+  progressSection: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -306,4 +383,62 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 12,
   },
+  detailsCard: {
+    width: '90%',
+    backgroundColor: COLORS.cardBg,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    padding: 18,
+    marginTop: 16,
+  },
+  detailsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(105, 103, 115, 0.2)',
+  },
+  detailsHeaderText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.lightGray,
+    marginLeft: 8,
+    letterSpacing: 0.5,
+  },
+  detailsGrid: {
+    width: '100%',
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  detailIconWrapper: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(0, 159, 183, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  detailTextWrapper: {
+    flex: 1,
+  },
+  detailLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: COLORS.slateGray,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  detailValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.lightGray,
+    marginTop: 2,
+  },
 });
+

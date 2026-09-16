@@ -5,6 +5,7 @@ export interface Song {
   title: string;
   artist: string;
   album: string;
+  composer?: string;
   year?: string;
   durationMillis: number;
   durationFormatted: string;
