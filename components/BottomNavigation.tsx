@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Home, Search, Library, Flame } from 'lucide-react-native';
+import { Home, Search, Library, Heart } from 'lucide-react-native';
 import { TabType } from '../types';
 import { COLORS } from '../constants/theme';
 
@@ -27,9 +27,9 @@ export const BottomNavigation: React.FC<BottomNavProps> = ({ activeTab, onTabCha
         <Text style={[styles.tabText, activeTab === 'library' && styles.activeTabText]}>Library</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.tabItem} onPress={() => onTabChange('hotlist')}>
-        <Flame size={22} color={activeTab === 'hotlist' ? COLORS.yellowAccent : COLORS.slateGray} />
-        <Text style={[styles.tabText, activeTab === 'hotlist' && styles.activeTabText]}>Hotlist</Text>
+      <TouchableOpacity style={styles.tabItem} onPress={() => onTabChange('favourites')}>
+        <Heart size={22} color={activeTab === 'favourites' ? COLORS.yellowAccent : COLORS.slateGray} />
+        <Text style={[styles.tabText, activeTab === 'favourites' && styles.activeTabText]}>Favourites</Text>
       </TouchableOpacity>
     </View>
   );

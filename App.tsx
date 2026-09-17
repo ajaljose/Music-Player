@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, StatusBar, Alert } from 'react-native';
-import { FolderData, TabType } from './types';
+import { FolderData, Song, TabType } from './types';
 import { FolderService } from './services/FolderService';
 import { AudioPlayerService, PlaybackState } from './services/AudioPlayerService';
 import { NowPlayingScreen } from './components/NowPlayingScreen';
 import { LibraryScreen } from './components/LibraryScreen';
+import { SearchScreen } from './components/SearchScreen';
+import { FavouritesScreen } from './components/FavouritesScreen';
 import { BottomNavigation } from './components/BottomNavigation';
 import { COLORS } from './constants/theme';
 
@@ -66,8 +68,19 @@ export default function App() {
   };
 
   const handleSelectTrack = async (index: number) => {
+    if (folderData?.songs) {
+      playerService.setPlaylist(folderData.songs, index);
+    }
     await playerService.playTrackAtIndex(index);
     setActiveTab('home'); // Jump to Now Playing view when track selected
+  };
+
+  const handleSelectTrackFromCustomList = async (songs: Song[], index: number) => {
+    if (songs && songs.length > 0) {
+      playerService.setPlaylist(songs, index);
+      await playerService.playTrackAtIndex(index);
+      setActiveTab('home');
+    }
   };
 
   const handlePlayAll = async () => {
@@ -78,8 +91,28 @@ export default function App() {
     }
   };
 
+  const handlePlayCustomList = async (songs: Song[]) => {
+    if (songs && songs.length > 0) {
+      playerService.setPlaylist(songs, 0);
+      await playerService.playTrackAtIndex(0);
+      setActiveTab('home');
+    }
+  };
+
   const handleShuffleAll = async () => {
     if (folderData?.songs && folderData.songs.length > 0) {
+      playerService.setPlaylist(folderData.songs, 0);
+      if (!playbackState.shuffleEnabled) {
+        playerService.toggleShuffle();
+      }
+      await playerService.playTrackAtIndex(0);
+      setActiveTab('home');
+    }
+  };
+
+  const handleShuffleCustomList = async (songs: Song[]) => {
+    if (songs && songs.length > 0) {
+      playerService.setPlaylist(songs, 0);
       if (!playbackState.shuffleEnabled) {
         playerService.toggleShuffle();
       }
@@ -92,9 +125,11 @@ export default function App() {
     const targetId = songId || playbackState.currentSong?.id;
     if (!targetId || !folderData) return;
 
-    const updatedSongs = folderData.songs.map(song => {
+    let updatedFavStatus = false;
+    const updatedSongs = folderData.songs.map((song) => {
       if (song.id === targetId) {
-        return { ...song, isFavorite: !song.isFavorite };
+        updatedFavStatus = !song.isFavorite;
+        return { ...song, isFavorite: updatedFavStatus };
       }
       return song;
     });
@@ -106,15 +141,13 @@ export default function App() {
 
     setFolderData(updatedFolder);
     FolderService.saveFolderData(updatedFolder);
+    playerService.updateSongFavorite(targetId, updatedFavStatus);
   };
 
-  return (
-    <View style={styles.appContainer}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.darkBg} />
-
-      {/* Main Screen Router */}
-      <View style={styles.mainView}>
-        {activeTab === 'library' ? (
+  const renderMainView = () => {
+    switch (activeTab) {
+      case 'library':
+        return (
           <LibraryScreen
             folderData={folderData}
             playbackState={playbackState}
@@ -124,8 +157,34 @@ export default function App() {
             onChangeFolder={handlePickFolder}
             onBackToNowPlaying={() => setActiveTab('home')}
             onToggleFavorite={handleToggleFavorite}
+            onOpenSearch={() => setActiveTab('search')}
           />
-        ) : (
+        );
+      case 'search':
+        return (
+          <SearchScreen
+            folderData={folderData}
+            playbackState={playbackState}
+            onSelectTrackFromList={handleSelectTrackFromCustomList}
+            onPlayAllResults={handlePlayCustomList}
+            onToggleFavorite={handleToggleFavorite}
+          />
+        );
+      case 'favourites':
+        return (
+          <FavouritesScreen
+            folderData={folderData}
+            playbackState={playbackState}
+            onSelectTrackFromList={handleSelectTrackFromCustomList}
+            onPlayAllFavourites={handlePlayCustomList}
+            onShuffleFavourites={handleShuffleCustomList}
+            onToggleFavorite={handleToggleFavorite}
+            onOpenLibrary={() => setActiveTab('library')}
+          />
+        );
+      case 'home':
+      default:
+        return (
           <NowPlayingScreen
             playbackState={playbackState}
             onTogglePlayPause={() => playerService.togglePlayPause()}
@@ -137,8 +196,16 @@ export default function App() {
             onToggleFavorite={() => handleToggleFavorite()}
             onOpenLibrary={() => setActiveTab('library')}
           />
-        )}
-      </View>
+        );
+    }
+  };
+
+  return (
+    <View style={styles.appContainer}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.darkBg} />
+
+      {/* Main Screen Router */}
+      <View style={styles.mainView}>{renderMainView()}</View>
 
       {/* Bottom Navigation Bar */}
       <BottomNavigation activeTab={activeTab} onTabChange={(tab) => setActiveTab(tab)} />

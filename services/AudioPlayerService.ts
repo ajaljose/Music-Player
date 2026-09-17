@@ -226,6 +226,16 @@ export class AudioPlayerService {
     this.notifyListeners();
   }
 
+  public updateSongFavorite(songId: string, isFavorite: boolean) {
+    this.playlist = this.playlist.map(song =>
+      song.id === songId ? { ...song, isFavorite } : song
+    );
+    this.originalPlaylist = this.originalPlaylist.map(song =>
+      song.id === songId ? { ...song, isFavorite } : song
+    );
+    this.notifyListeners();
+  }
+
   private onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
     if (!status.isLoaded) {
       if ('error' in status && status.error) {

@@ -34,6 +34,7 @@ interface LibraryScreenProps {
   onChangeFolder: () => void;
   onBackToNowPlaying: () => void;
   onToggleFavorite?: (songId: string) => void;
+  onOpenSearch?: () => void;
 }
 
 export const LibraryScreen: React.FC<LibraryScreenProps> = ({
@@ -45,6 +46,7 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
   onChangeFolder,
   onBackToNowPlaying,
   onToggleFavorite,
+  onOpenSearch,
 }) => {
   const songs = folderData?.songs || [];
   const folderName = folderData?.name || 'Local Folder';
@@ -120,7 +122,7 @@ export const LibraryScreen: React.FC<LibraryScreenProps> = ({
 
           <Text style={styles.headerTitle}>Library</Text>
 
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity onPress={onOpenSearch} style={styles.iconBtn}>
             <Search size={22} color={COLORS.lightGray} />
           </TouchableOpacity>
         </View>

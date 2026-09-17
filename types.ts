@@ -24,4 +24,4 @@ export interface FolderData {
 
 export type RepeatMode = 'off' | 'all' | 'one';
 
-export type TabType = 'home' | 'search' | 'library' | 'hotlist';
+export type TabType = 'home' | 'search' | 'library' | 'favourites';
