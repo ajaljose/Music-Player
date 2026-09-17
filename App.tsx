@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, StatusBar, Alert } from 'react-native';
+import { StyleSheet, View, StatusBar, Alert, Modal, Text, TouchableOpacity } from 'react-native';
+import { Folder, Music, X } from 'lucide-react-native';
 import { FolderData, Song, TabType } from './types';
 import { FolderService } from './services/FolderService';
 import { AudioPlayerService, PlaybackState } from './services/AudioPlayerService';
@@ -13,6 +14,7 @@ import { COLORS } from './constants/theme';
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [folderData, setFolderData] = useState<FolderData | null>(null);
+  const [pickerModalVisible, setPickerModalVisible] = useState<boolean>(false);
   const [playbackState, setPlaybackState] = useState<PlaybackState>({
     currentSong: null,
     isPlaying: false,
@@ -66,8 +68,13 @@ export default function App() {
     }
   };
 
-  const handlePickFolder = async () => {
-    const result = await FolderService.pickFolderOrFiles();
+  const handleOpenPickerModal = () => {
+    setPickerModalVisible(true);
+  };
+
+  const handleSelectFolder = async () => {
+    setPickerModalVisible(false);
+    const result = await FolderService.pickFolder();
     if (result && result.songs.length > 0) {
       setFolderData(result);
       playerService.setPlaylist(result.songs, 0);
@@ -75,6 +82,19 @@ export default function App() {
       Alert.alert('Folder Loaded', `Successfully loaded ${result.songs.length} MP3 files from "${result.name}".`);
     } else if (result && result.songs.length === 0) {
       Alert.alert('No MP3 Files Found', 'The selected folder does not contain any .mp3 files.');
+    }
+  };
+
+  const handleSelectFiles = async () => {
+    setPickerModalVisible(false);
+    const result = await FolderService.pickFilesOnly();
+    if (result && result.songs.length > 0) {
+      setFolderData(result);
+      playerService.setPlaylist(result.songs, 0);
+      await playerService.playTrackAtIndex(0);
+      Alert.alert('Files Loaded', `Successfully loaded ${result.songs.length} MP3 files.`);
+    } else if (result && result.songs.length === 0) {
+      Alert.alert('No MP3 Files Selected', 'No valid .mp3 files were selected.');
     }
   };
 
@@ -165,7 +185,7 @@ export default function App() {
             onSelectTrack={handleSelectTrack}
             onPlayAll={handlePlayAll}
             onShuffleAll={handleShuffleAll}
-            onChangeFolder={handlePickFolder}
+            onChangeFolder={handleOpenPickerModal}
             onBackToNowPlaying={() => setActiveTab('home')}
             onToggleFavorite={handleToggleFavorite}
             onOpenSearch={() => setActiveTab('search')}
@@ -220,6 +240,51 @@ export default function App() {
 
       {/* Bottom Navigation Bar */}
       <BottomNavigation activeTab={activeTab} onTabChange={(tab) => setActiveTab(tab)} />
+
+      {/* Import Music Source Modal */}
+      <Modal
+        visible={pickerModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPickerModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setPickerModalVisible(false)}
+        >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Import Music</Text>
+              <TouchableOpacity onPress={() => setPickerModalVisible(false)} style={styles.closeBtn}>
+                <X size={20} color={COLORS.slateGray} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalSubtitle}>Select how you would like to load songs:</Text>
+
+            <TouchableOpacity style={styles.sourceOptionCard} onPress={handleSelectFolder} activeOpacity={0.8}>
+              <View style={styles.sourceIconWrapper}>
+                <Folder size={24} color={COLORS.yellowAccent} />
+              </View>
+              <View style={styles.sourceTextWrapper}>
+                <Text style={styles.sourceOptionTitle}>Select Folder Directory</Text>
+                <Text style={styles.sourceOptionDesc}>Pick an entire folder to scan and import all MP3 files inside it.</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.sourceOptionCard} onPress={handleSelectFiles} activeOpacity={0.8}>
+              <View style={[styles.sourceIconWrapper, { backgroundColor: 'rgba(0, 159, 183, 0.15)' }]}>
+                <Music size={24} color={COLORS.cyanAccent} />
+              </View>
+              <View style={styles.sourceTextWrapper}>
+                <Text style={styles.sourceOptionTitle}>Select MP3 Files</Text>
+                <Text style={styles.sourceOptionDesc}>Choose specific .mp3 audio files individually from storage.</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -232,4 +297,73 @@ const styles = StyleSheet.create({
   mainView: {
     flex: 1,
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: COLORS.cardBg,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    padding: 24,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: COLORS.lightGray,
+  },
+  closeBtn: {
+    padding: 6,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: COLORS.slateGray,
+    marginBottom: 20,
+  },
+  sourceOptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.darkBg,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+  },
+  sourceIconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(252, 213, 53, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  sourceTextWrapper: {
+    flex: 1,
+  },
+  sourceOptionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.lightGray,
+  },
+  sourceOptionDesc: {
+    fontSize: 12,
+    color: COLORS.slateGray,
+    marginTop: 3,
+    lineHeight: 16,
+  },
 });
+
