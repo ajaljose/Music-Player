@@ -226,6 +226,14 @@ export async function parseMp3Metadata(uri: string, filename: string): Promise<S
       if (base64Part) {
         buffer = Buffer.from(base64Part, 'base64');
       }
+    } else if (uri.startsWith('blob:') || uri.startsWith('http://') || uri.startsWith('https://')) {
+      try {
+        const response = await fetch(uri);
+        const arrayBuf = await response.arrayBuffer();
+        buffer = Buffer.from(arrayBuf);
+      } catch (e) {
+        console.warn('[MetadataParser] Error fetching blob/http URI:', e);
+      }
     } else {
       // Read first 1MB of local file to capture ID3 tags & embedded album artwork
       const base64Chunk = await FileSystem.readAsStringAsync(uri, {
