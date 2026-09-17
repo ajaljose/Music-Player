@@ -174,6 +174,11 @@ async function saveArtworkToCache(
   artworkDataUri: string
 ): Promise<string> {
   try {
+    if (!artworkDataUri) return '';
+    if (!FileSystem || !FileSystem.cacheDirectory) {
+      return artworkDataUri;
+    }
+
     const isPng = artworkDataUri.startsWith('data:image/png');
     const ext = isPng ? 'png' : 'jpg';
     const base64Data = artworkDataUri.split(',')[1];
@@ -181,7 +186,7 @@ async function saveArtworkToCache(
 
     const cacheDir = `${FileSystem.cacheDirectory}artworks/`;
     const dirInfo = await FileSystem.getInfoAsync(cacheDir);
-    if (!dirInfo.exists) {
+    if (!dirInfo?.exists) {
       await FileSystem.makeDirectoryAsync(cacheDir, { intermediates: true });
     }
 

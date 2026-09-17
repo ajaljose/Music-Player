@@ -12,7 +12,7 @@ export const DEMO_SONGS: Song[] = [
     year: '2020',
     durationMillis: 169000,
     durationFormatted: '2:49',
-    artworkUri: null, // Will use default artwork
+    artworkUri: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80',
     isFavorite: true,
   },
   {
@@ -26,7 +26,7 @@ export const DEMO_SONGS: Song[] = [
     year: '2020',
     durationMillis: 203000,
     durationFormatted: '3:23',
-    artworkUri: null,
+    artworkUri: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80',
     isFavorite: false,
   },
   {
@@ -40,7 +40,7 @@ export const DEMO_SONGS: Song[] = [
     year: '2020',
     durationMillis: 164000,
     durationFormatted: '2:44',
-    artworkUri: null,
+    artworkUri: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80',
     isFavorite: true,
   },
   {
@@ -54,7 +54,7 @@ export const DEMO_SONGS: Song[] = [
     year: '2020',
     durationMillis: 252000,
     durationFormatted: '4:12',
-    artworkUri: null,
+    artworkUri: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80',
     isFavorite: false,
   },
   {
@@ -68,7 +68,7 @@ export const DEMO_SONGS: Song[] = [
     year: '2020',
     durationMillis: 203000,
     durationFormatted: '3:23',
-    artworkUri: null,
+    artworkUri: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80',
     isFavorite: false,
   },
 ];

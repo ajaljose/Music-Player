@@ -45,6 +45,17 @@ export default function App() {
     const savedFolder = await FolderService.getSavedFolderData();
 
     if (savedFolder && savedFolder.songs.length > 0) {
+      if (savedFolder.uri === 'demo://local-folder') {
+        const demoFolder = FolderService.getDefaultDemoFolder();
+        const updatedSongs = demoFolder.songs.map((ds) => {
+          const saved = savedFolder.songs.find((s) => s.id === ds.id);
+          return saved ? { ...ds, isFavorite: saved.isFavorite } : ds;
+        });
+        const updatedFolder: FolderData = { ...demoFolder, songs: updatedSongs };
+        setFolderData(updatedFolder);
+        playerService.setPlaylist(updatedFolder.songs, 0);
+        return;
+      }
       setFolderData(savedFolder);
       playerService.setPlaylist(savedFolder.songs, 0);
     } else {
