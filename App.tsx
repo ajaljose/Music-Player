@@ -9,6 +9,7 @@ import { LibraryScreen } from './components/LibraryScreen';
 import { SearchScreen } from './components/SearchScreen';
 import { FavouritesScreen } from './components/FavouritesScreen';
 import { BottomNavigation } from './components/BottomNavigation';
+import { MiniPlayer } from './components/MiniPlayer';
 import { COLORS } from './constants/theme';
 
 export default function App() {
@@ -237,6 +238,15 @@ export default function App() {
 
       {/* Main Screen Router */}
       <View style={styles.mainView}>{renderMainView()}</View>
+
+      {/* Mini Player Bar (shown on all screens except home when a song is loaded) */}
+      {activeTab !== 'home' && (
+        <MiniPlayer
+          playbackState={playbackState}
+          onTogglePlayPause={() => playerService.togglePlayPause()}
+          onOpenNowPlaying={() => setActiveTab('home')}
+        />
+      )}
 
       {/* Bottom Navigation Bar */}
       <BottomNavigation activeTab={activeTab} onTabChange={(tab) => setActiveTab(tab)} />
