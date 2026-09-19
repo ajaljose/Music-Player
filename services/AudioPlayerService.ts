@@ -1,4 +1,5 @@
 import { Audio, AVPlaybackStatus } from 'expo-av';
+import { NativeModules, Platform } from 'react-native';
 import { RepeatMode, Song } from '../types';
 
 export interface PlaybackState {
@@ -15,6 +16,18 @@ export interface PlaybackState {
 
 type StatusCallback = (state: PlaybackState) => void;
 
+const getNativeTrackPlayer = (): any => {
+  if (Platform.OS === 'web') return null;
+  if (!NativeModules || (!NativeModules.TrackPlayerModule && !NativeModules.RNTrackPlayer)) {
+    return null;
+  }
+  try {
+    return require('react-native-track-player');
+  } catch (e) {
+    return null;
+  }
+};
+
 export class AudioPlayerService {
   private static instance: AudioPlayerService;
   private sound: Audio.Sound | null = null;
@@ -28,9 +41,11 @@ export class AudioPlayerService {
   private shuffleEnabled: boolean = false;
   private repeatMode: RepeatMode = 'off';
   private statusListeners: StatusCallback[] = [];
+  private isTrackPlayerSetup: boolean = false;
 
   private constructor() {
     this.configureAudioMode();
+    this.setupTrackPlayerIfNeeded();
   }
 
   public static getInstance(): AudioPlayerService {
@@ -38,6 +53,40 @@ export class AudioPlayerService {
       AudioPlayerService.instance = new AudioPlayerService();
     }
     return AudioPlayerService.instance;
+  }
+
+  private async setupTrackPlayerIfNeeded() {
+    const tp = getNativeTrackPlayer();
+    if (!tp || this.isTrackPlayerSetup) return;
+    try {
+      const TrackPlayer = tp.default || tp;
+      const { Capability } = tp;
+      await TrackPlayer.setupPlayer();
+      await TrackPlayer.updateOptions({
+        capabilities: [
+          Capability.Play,
+          Capability.Pause,
+          Capability.SkipToNext,
+          Capability.SkipToPrevious,
+          Capability.SeekTo,
+        ],
+        compactCapabilities: [
+          Capability.Play,
+          Capability.Pause,
+          Capability.SkipToNext,
+        ],
+        notificationCapabilities: [
+          Capability.Play,
+          Capability.Pause,
+          Capability.SkipToNext,
+          Capability.SkipToPrevious,
+          Capability.SeekTo,
+        ],
+      });
+      this.isTrackPlayerSetup = true;
+    } catch (e) {
+      // Ignored if already initialized
+    }
   }
 
   private async configureAudioMode() {
@@ -75,6 +124,122 @@ export class AudioPlayerService {
       playlist: this.playlist,
     };
     this.statusListeners.forEach(listener => listener(currentState));
+    this.updateSystemMediaSession();
+  }
+
+  private updateSystemMediaSession() {
+    const currentSong = this.getCurrentSong();
+
+    // 1. Native Mobile (Android & iOS) Notification Panel & Lock Screen
+    const tp = getNativeTrackPlayer();
+    if (tp) {
+      this.setupTrackPlayerIfNeeded().then(async () => {
+        if (!this.isTrackPlayerSetup) return;
+        try {
+          const TrackPlayer = tp.default || tp;
+          if (currentSong && this.isPlaying) {
+            await TrackPlayer.reset();
+            await TrackPlayer.add({
+              id: currentSong.id,
+              url: currentSong.uri,
+              title: currentSong.title || 'Unknown Track',
+              artist: currentSong.artist || 'Unknown Artist',
+              album: currentSong.album || 'Music Player',
+              artwork:
+                currentSong.artworkUri ||
+                'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60',
+              duration: (this.durationMillis || currentSong.durationMillis || 180000) / 1000,
+            });
+            await TrackPlayer.play();
+          } else {
+            // "should not show when not playing"
+            await TrackPlayer.pause();
+            if (!currentSong) {
+              await TrackPlayer.reset();
+            }
+          }
+        } catch (e) {
+          console.warn('Native TrackPlayer notification update error:', e);
+        }
+      });
+    }
+
+    // 2. Web MediaSession API (Browser Notification Shade & Lock Screen)
+    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+      if (currentSong && this.isPlaying) {
+        const artwork = currentSong.artworkUri
+          ? [{ src: currentSong.artworkUri, sizes: '512x512', type: 'image/png' }]
+          : [
+              {
+                src: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60',
+                sizes: '512x512',
+                type: 'image/jpeg',
+              },
+            ];
+
+        try {
+          if (typeof MediaMetadata !== 'undefined') {
+            navigator.mediaSession.metadata = new MediaMetadata({
+              title: currentSong.title || 'Unknown Track',
+              artist: currentSong.artist || 'Unknown Artist',
+              album: currentSong.album || 'Music Player',
+              artwork: artwork,
+            });
+          }
+
+          navigator.mediaSession.playbackState = 'playing';
+
+          navigator.mediaSession.setActionHandler('play', () => {
+            this.togglePlayPause();
+          });
+          navigator.mediaSession.setActionHandler('pause', () => {
+            this.togglePlayPause();
+          });
+          navigator.mediaSession.setActionHandler('previoustrack', () => {
+            this.playPrevious();
+          });
+          navigator.mediaSession.setActionHandler('nexttrack', () => {
+            this.playNext();
+          });
+
+          try {
+            navigator.mediaSession.setActionHandler('seekto', (details) => {
+              if (details.seekTime !== undefined && details.seekTime !== null) {
+                this.seekTo(details.seekTime * 1000);
+              }
+            });
+          } catch (e) {
+            // ignore seekto unsupported browser error
+          }
+
+          if (
+            'setPositionState' in navigator.mediaSession &&
+            this.durationMillis > 0 &&
+            this.positionMillis >= 0
+          ) {
+            try {
+              navigator.mediaSession.setPositionState({
+                duration: Math.max(1, this.durationMillis / 1000),
+                playbackRate: 1,
+                position: Math.min(this.positionMillis / 1000, this.durationMillis / 1000),
+              });
+            } catch (e) {
+              // ignore
+            }
+          }
+        } catch (e) {
+          console.warn('MediaSession error:', e);
+        }
+      } else {
+        // Clear/hide system media notification when not playing
+        try {
+          navigator.mediaSession.playbackState = 'none';
+          navigator.mediaSession.metadata = null;
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
   }
 
   public setPlaylist(songs: Song[], startIndex: number = 0) {
