@@ -49,10 +49,44 @@ export class FolderService {
   }
 
   /**
+   * Parse a batch of MP3 items concurrently in chunks to speed up loading
+   */
+  private static async parseSongsInBatches(
+    items: { uri: string; name: string; size?: number }[]
+  ): Promise<Song[]> {
+    const songs: Song[] = [];
+    const BATCH_SIZE = 5;
+
+    for (let i = 0; i < items.length; i += BATCH_SIZE) {
+      const chunk = items.slice(i, i + BATCH_SIZE);
+      const parsedChunk = await Promise.all(
+        chunk.map(async (item) => {
+          try {
+            const song = await parseMp3Metadata(item.uri, item.name);
+            if (item.size) {
+              song.fileSize = item.size;
+            }
+            return song;
+          } catch (e) {
+            console.warn(`[FolderService] Failed parsing metadata for ${item.name}:`, e);
+            return null;
+          }
+        })
+      );
+
+      for (const song of parsedChunk) {
+        if (song) songs.push(song);
+      }
+    }
+
+    return songs;
+  }
+
+  /**
    * Scan a folder URI and return list of MP3 songs contained within it
    */
   static async scanFolderForMp3s(folderUri: string, folderName: string): Promise<FolderData> {
-    const songs: Song[] = [];
+    let songs: Song[] = [];
 
     try {
       const dirContents = await FileSystem.readDirectoryAsync(folderUri);
@@ -60,11 +94,12 @@ export class FolderService {
       // Filter ONLY .mp3 files
       const mp3Files = dirContents.filter(file => file.toLowerCase().endsWith('.mp3'));
 
-      for (const fileName of mp3Files) {
-        const fileUri = folderUri.endsWith('/') ? `${folderUri}${fileName}` : `${folderUri}/${fileName}`;
-        const songMetadata = await parseMp3Metadata(fileUri, fileName);
-        songs.push(songMetadata);
-      }
+      const itemsToParse = mp3Files.map(fileName => ({
+        uri: folderUri.endsWith('/') ? `${folderUri}${fileName}` : `${folderUri}/${fileName}`,
+        name: fileName,
+      }));
+
+      songs = await this.parseSongsInBatches(itemsToParse);
     } catch (err) {
       console.warn('Error reading directory directly, fallback picker mode:', err);
     }
@@ -151,16 +186,16 @@ export class FolderService {
                 folderName = files[0].webkitRelativePath.split('/')[0] || 'Selected Folder';
               }
 
-              const songs: Song[] = [];
+              const itemsToParse: { uri: string; name: string; size: number }[] = [];
               for (let i = 0; i < files.length; i++) {
                 const file = files[i];
                 if (file.name.toLowerCase().endsWith('.mp3')) {
                   const fileUri = URL.createObjectURL(file);
-                  const song = await parseMp3Metadata(fileUri, file.name);
-                  song.fileSize = file.size;
-                  songs.push(song);
+                  itemsToParse.push({ uri: fileUri, name: file.name, size: file.size });
                 }
               }
+
+              const songs = await FolderService.parseSongsInBatches(itemsToParse);
 
               const folderData: FolderData = {
                 uri: 'web://' + folderName,
@@ -170,7 +205,7 @@ export class FolderService {
                 updatedAt: Date.now(),
               };
 
-              await this.saveFolderData(folderData);
+              await FolderService.saveFolderData(folderData);
               resolve(folderData);
             };
 
@@ -199,16 +234,17 @@ export class FolderService {
         } catch (e) {}
 
         const fileUris = await FileSystem.StorageAccessFramework.readDirectoryAsync(directoryUri);
-        const songs: Song[] = [];
+        const itemsToParse: { uri: string; name: string }[] = [];
 
         for (const fileUri of fileUris) {
           const decodedUri = decodeURIComponent(fileUri);
           if (decodedUri.toLowerCase().endsWith('.mp3') || decodedUri.toLowerCase().includes('.mp3')) {
             const fileName = decodedUri.split('/').pop() || 'Track.mp3';
-            const song = await parseMp3Metadata(fileUri, fileName);
-            songs.push(song);
+            itemsToParse.push({ uri: fileUri, name: fileName });
           }
         }
+
+        const songs = await this.parseSongsInBatches(itemsToParse);
 
         const folderData: FolderData = {
           uri: directoryUri,
@@ -237,7 +273,7 @@ export class FolderService {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: ['audio/mpeg', 'audio/mp3', 'audio/x-mp3', 'application/octet-stream', '*/*'],
-        copyToCacheDirectory: true,
+        copyToCacheDirectory: false,
         multiple: true,
       });
 
@@ -246,7 +282,6 @@ export class FolderService {
       }
 
       const pickedAssets = result.assets;
-      const songs: Song[] = [];
 
       const samplePath = pickedAssets[0].uri;
       const pathParts = samplePath.split('/');
@@ -255,15 +290,15 @@ export class FolderService {
         folderName = decodeURIComponent(pathParts[pathParts.length - 2]) || 'Local Files';
       }
 
-      for (const asset of pickedAssets) {
-        if (asset.name.toLowerCase().endsWith('.mp3')) {
-          const song = await parseMp3Metadata(asset.uri, asset.name);
-          if (asset.size) {
-            song.fileSize = asset.size;
-          }
-          songs.push(song);
-        }
-      }
+      const itemsToParse = pickedAssets
+        .filter(asset => asset.name.toLowerCase().endsWith('.mp3') || asset.mimeType?.includes('audio'))
+        .map(asset => ({
+          uri: asset.uri,
+          name: asset.name,
+          size: asset.size,
+        }));
+
+      const songs = await this.parseSongsInBatches(itemsToParse);
 
       if (songs.length === 0) {
         return null;
