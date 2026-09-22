@@ -127,42 +127,65 @@ export class AudioPlayerService {
     this.updateSystemMediaSession();
   }
 
+  private lastNotificationSongId: string | null = null;
+  private lastNotificationIsPlaying: boolean | null = null;
+
+  private async updateNativeTrackPlayerNotification(currentSong: Song | null, isPlaying: boolean) {
+    const tp = getNativeTrackPlayer();
+    if (!tp) return;
+
+    try {
+      await this.setupTrackPlayerIfNeeded();
+      if (!this.isTrackPlayerSetup) return;
+
+      const TrackPlayer = tp.default || tp;
+
+      if (!currentSong) {
+        if (this.lastNotificationSongId !== null) {
+          await TrackPlayer.reset();
+          this.lastNotificationSongId = null;
+          this.lastNotificationIsPlaying = null;
+        }
+        return;
+      }
+
+      // 1. Only reset and re-add track metadata when song ID changes
+      if (this.lastNotificationSongId !== currentSong.id) {
+        this.lastNotificationSongId = currentSong.id;
+        await TrackPlayer.reset();
+        await TrackPlayer.add({
+          id: currentSong.id,
+          url: currentSong.uri,
+          title: currentSong.title || 'Unknown Track',
+          artist: currentSong.artist || 'Unknown Artist',
+          album: currentSong.album || 'Music Player',
+          artwork:
+            currentSong.artworkUri ||
+            'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60',
+          duration: (this.durationMillis || currentSong.durationMillis || 180000) / 1000,
+        });
+        this.lastNotificationIsPlaying = null;
+      }
+
+      // 2. Only toggle native TrackPlayer playback state when playing status changes
+      if (this.lastNotificationIsPlaying !== isPlaying) {
+        this.lastNotificationIsPlaying = isPlaying;
+        if (isPlaying) {
+          await TrackPlayer.play();
+        } else {
+          await TrackPlayer.pause();
+        }
+      }
+    } catch (e) {
+      console.warn('[AudioPlayerService] Native notification update error:', e);
+    }
+  }
+
   private updateSystemMediaSession() {
     const currentSong = this.getCurrentSong();
 
     // 1. Native Mobile (Android & iOS) Notification Panel & Lock Screen
-    const tp = getNativeTrackPlayer();
-    if (tp) {
-      this.setupTrackPlayerIfNeeded().then(async () => {
-        if (!this.isTrackPlayerSetup) return;
-        try {
-          const TrackPlayer = tp.default || tp;
-          if (currentSong && this.isPlaying) {
-            await TrackPlayer.reset();
-            await TrackPlayer.add({
-              id: currentSong.id,
-              url: currentSong.uri,
-              title: currentSong.title || 'Unknown Track',
-              artist: currentSong.artist || 'Unknown Artist',
-              album: currentSong.album || 'Music Player',
-              artwork:
-                currentSong.artworkUri ||
-                'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60',
-              duration: (this.durationMillis || currentSong.durationMillis || 180000) / 1000,
-            });
-            await TrackPlayer.play();
-          } else {
-            // "should not show when not playing"
-            await TrackPlayer.pause();
-            if (!currentSong) {
-              await TrackPlayer.reset();
-            }
-          }
-        } catch (e) {
-          console.warn('Native TrackPlayer notification update error:', e);
-        }
-      });
-    }
+    this.updateNativeTrackPlayerNotification(currentSong, this.isPlaying);
 
     // 2. Web MediaSession API (Browser Notification Shade & Lock Screen)
     if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
@@ -266,19 +289,26 @@ export class AudioPlayerService {
         this.sound = null;
       }
 
-      const { sound } = await Audio.Sound.createAsync(
+      const { sound, status } = await Audio.Sound.createAsync(
         { uri: song.uri },
         { shouldPlay: true },
         this.onPlaybackStatusUpdate
       );
 
       this.sound = sound;
-      this.isPlaying = true;
+      if (status.isLoaded) {
+        this.isPlaying = status.isPlaying;
+        this.positionMillis = status.positionMillis;
+        if (status.durationMillis) {
+          this.durationMillis = status.durationMillis;
+        }
+      } else {
+        this.isPlaying = true;
+      }
       this.notifyListeners();
     } catch (error) {
       console.error('Error loading audio file:', error);
-      // fallback simulation for demo
-      this.isPlaying = true;
+      this.isPlaying = false;
       this.notifyListeners();
     }
   }
@@ -301,14 +331,19 @@ export class AudioPlayerService {
       return;
     }
 
-    if (this.isPlaying) {
-      await this.sound.pauseAsync();
-      this.isPlaying = false;
-    } else {
-      await this.sound.playAsync();
-      this.isPlaying = true;
+    try {
+      if (this.isPlaying) {
+        this.isPlaying = false;
+        this.notifyListeners();
+        await this.sound.pauseAsync();
+      } else {
+        this.isPlaying = true;
+        this.notifyListeners();
+        await this.sound.playAsync();
+      }
+    } catch (e) {
+      console.error('Error toggling play/pause:', e);
     }
-    this.notifyListeners();
   }
 
   public async seekTo(positionMs: number) {

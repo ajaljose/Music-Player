@@ -235,10 +235,10 @@ export async function parseMp3Metadata(uri: string, filename: string): Promise<S
         console.warn('[MetadataParser] Error fetching blob/http URI:', e);
       }
     } else {
-      // Read first 1MB of local file to capture ID3 tags & embedded album artwork
+      // Read initial 64KB chunk of local file to capture ID3 tags & embedded album artwork fast
       const base64Chunk = await FileSystem.readAsStringAsync(uri, {
         encoding: FileSystem.EncodingType.Base64,
-        length: 1048576,
+        length: 65536,
         position: 0,
       });
       buffer = Buffer.from(base64Chunk, 'base64');
