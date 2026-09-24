@@ -347,10 +347,19 @@ export class AudioPlayerService {
   }
 
   public async seekTo(positionMs: number) {
-    if (this.sound) {
-      await this.sound.setPositionAsync(positionMs);
-      this.positionMillis = positionMs;
+    if (!this.sound) return;
+    if (typeof positionMs !== 'number' || isNaN(positionMs) || !isFinite(positionMs)) {
+      console.warn('[AudioPlayerService] Invalid positionMs passed to seekTo:', positionMs);
+      return;
+    }
+
+    const validPos = Math.max(0, Math.floor(positionMs));
+    try {
+      this.positionMillis = validPos;
       this.notifyListeners();
+      await this.sound.setPositionAsync(validPos);
+    } catch (e) {
+      console.warn('[AudioPlayerService] Error during setPositionAsync:', e);
     }
   }
 

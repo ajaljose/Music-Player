@@ -80,7 +80,7 @@ export default function App() {
       setFolderData(result);
       playerService.setPlaylist(result.songs, 0);
       await playerService.playTrackAtIndex(0);
-      Alert.alert('Folder Loaded', `Successfully loaded ${result.songs.length} MP3 files from "${result.name}".`);
+      setActiveTab('library');
     } else if (result && result.songs.length === 0) {
       Alert.alert('No MP3 Files Found', 'The selected folder does not contain any .mp3 files.');
     }
@@ -93,7 +93,7 @@ export default function App() {
       setFolderData(result);
       playerService.setPlaylist(result.songs, 0);
       await playerService.playTrackAtIndex(0);
-      Alert.alert('Files Loaded', `Successfully loaded ${result.songs.length} MP3 files.`);
+      setActiveTab('library');
     } else if (result && result.songs.length === 0) {
       Alert.alert('No MP3 Files Selected', 'No valid .mp3 files were selected.');
     }
@@ -186,7 +186,7 @@ export default function App() {
             onSelectTrack={handleSelectTrack}
             onPlayAll={handlePlayAll}
             onShuffleAll={handleShuffleAll}
-            onChangeFolder={handleOpenPickerModal}
+            onChangeFolder={handleSelectFolder}
             onBackToNowPlaying={() => setActiveTab('home')}
             onToggleFavorite={handleToggleFavorite}
             onOpenSearch={() => setActiveTab('search')}

@@ -61,6 +61,7 @@ export const NowPlayingScreen: React.FC<NowPlayingProps> = ({
   onToggleFavorite,
   onOpenLibrary,
 }) => {
+  const [scrollEnabled, setScrollEnabled] = React.useState<boolean>(true);
   const { currentSong, isPlaying, positionMillis, durationMillis, shuffleEnabled, repeatMode } =
     playbackState;
 
@@ -75,7 +76,9 @@ export const NowPlayingScreen: React.FC<NowPlayingProps> = ({
     ? { uri: currentSong.artworkUri }
     : DEFAULT_ARTWORK;
 
-  const progressRatio = durationMillis > 0 ? positionMillis / durationMillis : 0;
+  const validDuration = typeof durationMillis === 'number' && durationMillis > 0 ? durationMillis : 0;
+  const validPosition = typeof positionMillis === 'number' && positionMillis >= 0 ? positionMillis : 0;
+  const progressRatio = validDuration > 0 ? Math.max(0, Math.min(1, validPosition / validDuration)) : 0;
 
   return (
     <SafeAreaView style={styles.safeContainer}>
@@ -83,6 +86,7 @@ export const NowPlayingScreen: React.FC<NowPlayingProps> = ({
         style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        scrollEnabled={scrollEnabled}
       >
         {/* Top Curved Gradient Header Background */}
         <LinearGradient
@@ -138,16 +142,18 @@ export const NowPlayingScreen: React.FC<NowPlayingProps> = ({
 
         {/* Interactive Progress Bar */}
         <View style={styles.progressSection}>
-          <Text style={styles.timeText}>{formatDuration(positionMillis)}</Text>
+          <Text style={styles.timeText}>{formatDuration(validPosition)}</Text>
           <InteractiveSlider
             progress={progressRatio}
+            onSlidingStart={() => setScrollEnabled(false)}
+            onSlidingComplete={() => setScrollEnabled(true)}
             onSeek={(ratio) => {
-              if (durationMillis > 0) {
-                onSeek(ratio * durationMillis);
+              if (validDuration > 0 && typeof ratio === 'number' && !isNaN(ratio) && isFinite(ratio)) {
+                onSeek(Math.max(0, Math.min(validDuration, ratio * validDuration)));
               }
             }}
           />
-          <Text style={styles.timeText}>{formatDuration(durationMillis)}</Text>
+          <Text style={styles.timeText}>{formatDuration(validDuration)}</Text>
         </View>
 
         {/* Player Controls Bar */}
