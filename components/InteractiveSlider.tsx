@@ -5,14 +5,23 @@ import { COLORS } from '../constants/theme';
 interface InteractiveSliderProps {
   progress: number; // 0.0 to 1.0
   onSeek: (ratio: number) => void;
+  onSlidingStart?: () => void;
+  onSlidingComplete?: () => void;
   trackColor?: string;
   progressColor?: string;
   thumbColor?: string;
 }
 
+const safeRatio = (val: number): number => {
+  if (typeof val !== 'number' || isNaN(val) || !isFinite(val)) return 0;
+  return Math.max(0, Math.min(1, val));
+};
+
 export const InteractiveSlider: React.FC<InteractiveSliderProps> = ({
   progress,
   onSeek,
+  onSlidingStart,
+  onSlidingComplete,
   trackColor = 'rgba(105, 103, 115, 0.3)',
   progressColor = COLORS.yellowAccent,
   thumbColor = COLORS.yellowAccent,
@@ -23,17 +32,35 @@ export const InteractiveSlider: React.FC<InteractiveSliderProps> = ({
 
   const sliderWidthRef = useRef<number>(0);
   const dragRatioRef = useRef<number>(0);
-  const containerRef = useRef<View>(null);
   const leftOffsetRef = useRef<number>(0);
 
   useEffect(() => {
     sliderWidthRef.current = sliderWidth;
   }, [sliderWidth]);
 
-  const updateRatioFromPageX = (pageX: number, leftOffset: number) => {
-    if (sliderWidthRef.current <= 0) return 0;
-    const touchX = pageX - leftOffset;
-    const newRatio = Math.max(0, Math.min(1, touchX / sliderWidthRef.current));
+  const updateRatioFromEvent = (evt: any): number => {
+    const nativeEvt = evt?.nativeEvent;
+    if (!nativeEvt) return safeRatio(dragRatioRef.current);
+
+    const pageX = nativeEvt.pageX;
+    const locationX = nativeEvt.locationX;
+
+    // Calculate left offset of the container on screen synchronously
+    if (typeof pageX === 'number' && typeof locationX === 'number' && !isNaN(pageX) && !isNaN(locationX)) {
+      leftOffsetRef.current = pageX - locationX;
+    }
+
+    const width = sliderWidthRef.current;
+    if (width <= 0) return safeRatio(progress);
+
+    let touchX = 0;
+    if (typeof pageX === 'number' && !isNaN(pageX) && leftOffsetRef.current > 0) {
+      touchX = pageX - leftOffsetRef.current;
+    } else if (typeof locationX === 'number' && !isNaN(locationX)) {
+      touchX = locationX;
+    }
+
+    const newRatio = safeRatio(touchX / width);
     dragRatioRef.current = newRatio;
     setDragRatio(newRatio);
     return newRatio;
@@ -42,46 +69,50 @@ export const InteractiveSlider: React.FC<InteractiveSliderProps> = ({
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponderCapture: () => true,
       onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: () => true,
+      onPanResponderTerminationRequest: () => false,
 
       onPanResponderGrant: (evt) => {
         setIsSeeking(true);
-        containerRef.current?.measure((x, y, width, height, pageX, pageY) => {
-          leftOffsetRef.current = pageX;
-          sliderWidthRef.current = width;
-          updateRatioFromPageX(evt.nativeEvent.pageX, pageX);
-        });
+        onSlidingStart?.();
+        updateRatioFromEvent(evt);
       },
 
       onPanResponderMove: (evt) => {
-        updateRatioFromPageX(evt.nativeEvent.pageX, leftOffsetRef.current);
+        updateRatioFromEvent(evt);
       },
 
       onPanResponderRelease: (evt) => {
-        const finalRatio = updateRatioFromPageX(evt.nativeEvent.pageX, leftOffsetRef.current);
+        const finalRatio = updateRatioFromEvent(evt);
         setIsSeeking(false);
+        onSlidingComplete?.();
         onSeek(finalRatio);
       },
 
       onPanResponderTerminate: (evt) => {
+        const finalRatio = safeRatio(dragRatioRef.current);
         setIsSeeking(false);
-        onSeek(dragRatioRef.current);
+        onSlidingComplete?.();
+        onSeek(finalRatio);
       },
     })
   ).current;
 
   const handleLayout = (e: LayoutChangeEvent) => {
     const width = e.nativeEvent.layout.width;
-    setSliderWidth(width);
-    sliderWidthRef.current = width;
+    if (width > 0) {
+      setSliderWidth(width);
+      sliderWidthRef.current = width;
+    }
   };
 
-  const effectiveRatio = isSeeking ? dragRatio : Math.max(0, Math.min(1, progress));
-  const activePercent: DimensionValue = `${effectiveRatio * 100}%`;
+  const effectiveRatio = isSeeking ? safeRatio(dragRatio) : safeRatio(progress);
+  const activePercent: DimensionValue = `${(effectiveRatio * 100).toFixed(2)}%` as DimensionValue;
 
   return (
     <View
-      ref={containerRef}
       style={styles.touchContainer}
       onLayout={handleLayout}
       {...panResponder.panHandlers}
@@ -135,3 +166,4 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
 });
+
