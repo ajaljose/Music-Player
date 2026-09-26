@@ -42,6 +42,7 @@ export class AudioPlayerService {
   private repeatMode: RepeatMode = 'off';
   private statusListeners: StatusCallback[] = [];
   private isTrackPlayerSetup: boolean = false;
+  private loadingToken: number = 0;
 
   private constructor() {
     this.configureAudioMode();
@@ -140,41 +141,12 @@ export class AudioPlayerService {
 
       const TrackPlayer = tp.default || tp;
 
-      if (!currentSong) {
-        if (this.lastNotificationSongId !== null) {
-          await TrackPlayer.reset();
-          this.lastNotificationSongId = null;
-          this.lastNotificationIsPlaying = null;
-        }
-        return;
-      }
-
-      // 1. Only reset and re-add track metadata when song ID changes
-      if (this.lastNotificationSongId !== currentSong.id) {
-        this.lastNotificationSongId = currentSong.id;
+      // expo-av is our single audio playback engine.
+      // Reset TrackPlayer if it was previously initialized so it does not launch a duplicate native audio stream.
+      if (this.lastNotificationSongId !== null || !currentSong) {
         await TrackPlayer.reset();
-        await TrackPlayer.add({
-          id: currentSong.id,
-          url: currentSong.uri,
-          title: currentSong.title || 'Unknown Track',
-          artist: currentSong.artist || 'Unknown Artist',
-          album: currentSong.album || 'Music Player',
-          artwork:
-            currentSong.artworkUri ||
-            'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60',
-          duration: (this.durationMillis || currentSong.durationMillis || 180000) / 1000,
-        });
+        this.lastNotificationSongId = null;
         this.lastNotificationIsPlaying = null;
-      }
-
-      // 2. Only toggle native TrackPlayer playback state when playing status changes
-      if (this.lastNotificationIsPlaying !== isPlaying) {
-        this.lastNotificationIsPlaying = isPlaying;
-        if (isPlaying) {
-          await TrackPlayer.play();
-        } else {
-          await TrackPlayer.pause();
-        }
       }
     } catch (e) {
       console.warn('[AudioPlayerService] Native notification update error:', e);
@@ -283,10 +255,18 @@ export class AudioPlayerService {
   }
 
   public async loadAndPlaySong(song: Song) {
+    const currentToken = ++this.loadingToken;
+
     try {
       if (this.sound) {
-        await this.sound.unloadAsync();
+        const soundToUnload = this.sound;
         this.sound = null;
+        try {
+          await soundToUnload.setStatusAsync({ shouldPlay: false });
+          await soundToUnload.unloadAsync();
+        } catch (e) {
+          // ignore unload error
+        }
       }
 
       const { sound, status } = await Audio.Sound.createAsync(
@@ -294,6 +274,16 @@ export class AudioPlayerService {
         { shouldPlay: true },
         this.onPlaybackStatusUpdate
       );
+
+      if (this.loadingToken !== currentToken) {
+        try {
+          await sound.setStatusAsync({ shouldPlay: false });
+          await sound.unloadAsync();
+        } catch (e) {
+          // ignore unload error
+        }
+        return;
+      }
 
       this.sound = sound;
       if (status.isLoaded) {
@@ -308,8 +298,10 @@ export class AudioPlayerService {
       this.notifyListeners();
     } catch (error) {
       console.error('Error loading audio file:', error);
-      this.isPlaying = false;
-      this.notifyListeners();
+      if (this.loadingToken === currentToken) {
+        this.isPlaying = false;
+        this.notifyListeners();
+      }
     }
   }
 
