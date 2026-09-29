@@ -61,7 +61,7 @@ export class AudioPlayerService {
     if (!tp || this.isTrackPlayerSetup) return;
     try {
       const TrackPlayer = tp.default || tp;
-      const { Capability } = tp;
+      const { Capability, Event, State } = tp;
       await TrackPlayer.setupPlayer();
       await TrackPlayer.updateOptions({
         capabilities: [
@@ -83,10 +83,46 @@ export class AudioPlayerService {
           Capability.SkipToPrevious,
           Capability.SeekTo,
         ],
+        progressUpdateEventInterval: 1,
       });
+
+      if (Event && Event.PlaybackProgressUpdated) {
+        TrackPlayer.addEventListener(Event.PlaybackProgressUpdated, (progress: any) => {
+          if (progress && typeof progress.position === 'number') {
+            this.positionMillis = Math.floor(progress.position * 1000);
+            if (progress.duration && progress.duration > 0) {
+              this.durationMillis = Math.floor(progress.duration * 1000);
+            }
+            this.notifyListeners();
+          }
+        });
+      }
+
+      if (Event && Event.PlaybackState) {
+        TrackPlayer.addEventListener(Event.PlaybackState, (event: any) => {
+          const state = event ? (event.state !== undefined ? event.state : event) : null;
+          if (state === State.Playing || state === 'playing') {
+            this.isPlaying = true;
+            this.isBuffering = false;
+          } else if (state === State.Paused || state === 'paused' || state === State.Stopped || state === 'stopped') {
+            this.isPlaying = false;
+            this.isBuffering = false;
+          } else if (state === State.Buffering || state === 'buffering') {
+            this.isBuffering = true;
+          }
+          this.notifyListeners();
+        });
+      }
+
+      if (Event && Event.PlaybackQueueEnded) {
+        TrackPlayer.addEventListener(Event.PlaybackQueueEnded, () => {
+          this.playNext();
+        });
+      }
+
       this.isTrackPlayerSetup = true;
     } catch (e) {
-      // Ignored if already initialized
+      console.warn('[AudioPlayerService] TrackPlayer setup error:', e);
     }
   }
 
@@ -128,38 +164,10 @@ export class AudioPlayerService {
     this.updateSystemMediaSession();
   }
 
-  private lastNotificationSongId: string | null = null;
-  private lastNotificationIsPlaying: boolean | null = null;
-
-  private async updateNativeTrackPlayerNotification(currentSong: Song | null, isPlaying: boolean) {
-    const tp = getNativeTrackPlayer();
-    if (!tp) return;
-
-    try {
-      await this.setupTrackPlayerIfNeeded();
-      if (!this.isTrackPlayerSetup) return;
-
-      const TrackPlayer = tp.default || tp;
-
-      // expo-av is our single audio playback engine.
-      // Reset TrackPlayer if it was previously initialized so it does not launch a duplicate native audio stream.
-      if (this.lastNotificationSongId !== null || !currentSong) {
-        await TrackPlayer.reset();
-        this.lastNotificationSongId = null;
-        this.lastNotificationIsPlaying = null;
-      }
-    } catch (e) {
-      console.warn('[AudioPlayerService] Native notification update error:', e);
-    }
-  }
-
   private updateSystemMediaSession() {
     const currentSong = this.getCurrentSong();
 
-    // 1. Native Mobile (Android & iOS) Notification Panel & Lock Screen
-    this.updateNativeTrackPlayerNotification(currentSong, this.isPlaying);
-
-    // 2. Web MediaSession API (Browser Notification Shade & Lock Screen)
+    // Web MediaSession API (Browser Notification Shade & Lock Screen)
     if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
       if (currentSong && this.isPlaying) {
         const artwork = currentSong.artworkUri
@@ -257,18 +265,57 @@ export class AudioPlayerService {
   public async loadAndPlaySong(song: Song) {
     const currentToken = ++this.loadingToken;
 
-    try {
-      if (this.sound) {
-        const soundToUnload = this.sound;
-        this.sound = null;
-        try {
-          await soundToUnload.setStatusAsync({ shouldPlay: false });
-          await soundToUnload.unloadAsync();
-        } catch (e) {
-          // ignore unload error
-        }
+    // 1. Unload any existing expo-av sound instance to prevent duplicate audio
+    if (this.sound) {
+      const soundToUnload = this.sound;
+      this.sound = null;
+      try {
+        await soundToUnload.setStatusAsync({ shouldPlay: false });
+        await soundToUnload.unloadAsync();
+      } catch (e) {
+        // ignore unload error
       }
+    }
 
+    const tp = getNativeTrackPlayer();
+
+    // 2. Native Mobile (Android & iOS) -> Use TrackPlayer as sole native audio engine for clean native notification & 0 echo
+    if (tp) {
+      try {
+        await this.setupTrackPlayerIfNeeded();
+        const TrackPlayer = tp.default || tp;
+
+        await TrackPlayer.reset();
+        await TrackPlayer.add({
+          id: song.id,
+          url: song.uri,
+          title: song.title || 'Unknown Track',
+          artist: song.artist || 'Unknown Artist',
+          album: song.album || 'Music Player',
+          artwork:
+            song.artworkUri ||
+            'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60',
+          duration: (song.durationMillis || 180000) / 1000,
+        });
+
+        if (this.loadingToken !== currentToken) {
+          await TrackPlayer.reset();
+          return;
+        }
+
+        await TrackPlayer.play();
+        this.isPlaying = true;
+        this.positionMillis = 0;
+        this.durationMillis = song.durationMillis || 180000;
+        this.notifyListeners();
+        return;
+      } catch (e) {
+        console.warn('[AudioPlayerService] TrackPlayer load error, falling back to expo-av:', e);
+      }
+    }
+
+    // 3. Web / Fallback -> Use expo-av Audio.Sound as sole audio engine
+    try {
       const { sound, status } = await Audio.Sound.createAsync(
         { uri: song.uri },
         { shouldPlay: true },
@@ -280,7 +327,7 @@ export class AudioPlayerService {
           await sound.setStatusAsync({ shouldPlay: false });
           await sound.unloadAsync();
         } catch (e) {
-          // ignore unload error
+          // ignore
         }
         return;
       }
@@ -315,6 +362,28 @@ export class AudioPlayerService {
   }
 
   public async togglePlayPause() {
+    const tp = getNativeTrackPlayer();
+
+    if (tp && this.isTrackPlayerSetup) {
+      try {
+        const TrackPlayer = tp.default || tp;
+        if (this.isPlaying) {
+          this.isPlaying = false;
+          this.notifyListeners();
+          await TrackPlayer.pause();
+        } else {
+          const currentSong = this.getCurrentSong();
+          if (!currentSong) return;
+          this.isPlaying = true;
+          this.notifyListeners();
+          await TrackPlayer.play();
+        }
+        return;
+      } catch (e) {
+        console.warn('[AudioPlayerService] TrackPlayer togglePlayPause error:', e);
+      }
+    }
+
     if (!this.sound) {
       const currentSong = this.getCurrentSong();
       if (currentSong) {
@@ -339,19 +408,32 @@ export class AudioPlayerService {
   }
 
   public async seekTo(positionMs: number) {
-    if (!this.sound) return;
     if (typeof positionMs !== 'number' || isNaN(positionMs) || !isFinite(positionMs)) {
       console.warn('[AudioPlayerService] Invalid positionMs passed to seekTo:', positionMs);
       return;
     }
 
     const validPos = Math.max(0, Math.floor(positionMs));
-    try {
-      this.positionMillis = validPos;
-      this.notifyListeners();
-      await this.sound.setPositionAsync(validPos);
-    } catch (e) {
-      console.warn('[AudioPlayerService] Error during setPositionAsync:', e);
+    this.positionMillis = validPos;
+    this.notifyListeners();
+
+    const tp = getNativeTrackPlayer();
+    if (tp && this.isTrackPlayerSetup) {
+      try {
+        const TrackPlayer = tp.default || tp;
+        await TrackPlayer.seekTo(validPos / 1000);
+        return;
+      } catch (e) {
+        console.warn('[AudioPlayerService] TrackPlayer seekTo error:', e);
+      }
+    }
+
+    if (this.sound) {
+      try {
+        await this.sound.setPositionAsync(validPos);
+      } catch (e) {
+        console.warn('[AudioPlayerService] Error during setPositionAsync:', e);
+      }
     }
   }
 
